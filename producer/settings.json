@@ -1,0 +1,8 @@
+{
+  "Kafka": {
+    "Brokers": ["kafka:9092"],
+    "Topic": "posts_published"
+  },
+  "MessagesPerSecond": 100,
+  "Workers": 20
+}

@@ -1,0 +1,10 @@
+{
+  "Kafka": {
+    "Brokers": ["kafka:9092"],
+    "Topics": {
+      "PoisonQueue": "poison_queue",
+      "PostsPublished": "posts_published",
+      "PostsCounted": "posts_count"
+    }
+  }
+}

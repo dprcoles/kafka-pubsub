@@ -1,0 +1,1 @@
+docker compose exec kafka kafka-console-consumer.sh --topic poison_queue --bootstrap-server localhost:9092
