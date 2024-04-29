@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
 	"github.com/dprcoles/kafka-pubsub/producer/worker"
@@ -13,15 +12,14 @@ import (
 
 func main() {
 	logger := watermill.NewStdLogger(false, false)
-
-	handleConfig()
+	config := newConfig()
 
 	logger.Info("Starting the producer", watermill.LogFields{})
-
 	publisher, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
-			Brokers:   viper.GetStringSlice("Kafka.Brokers"),
-			Marshaler: kafka.DefaultMarshaler{},
+			Brokers:     viper.GetStringSlice("Kafka.Brokers"),
+			Marshaler:   kafka.DefaultMarshaler{},
+			OTELEnabled: true,
 		},
 		logger,
 	)
@@ -30,20 +28,28 @@ func main() {
 	}
 	defer publisher.Close()
 
-	setupWorkers(publisher)
+	setupWorkers(setupWorkersConfig{
+		Count:             config.GetInt("Workers"),
+		MessagesPerSecond: config.GetInt("MessagesPerSecond"),
+		Publisher:         publisher,
+	})
 
 	logger.Info("All messages published", nil)
 }
 
-func setupWorkers(publisher *kafka.Publisher) {
-	workers := viper.GetInt("Workers")
+type setupWorkersConfig struct {
+	Count             int
+	MessagesPerSecond int
+	Publisher         *kafka.Publisher
+}
 
+func setupWorkers(config setupWorkersConfig) {
 	closeCh := make(chan struct{})
 	workersGroup := &sync.WaitGroup{}
-	workersGroup.Add(workers)
+	workersGroup.Add(config.Count)
 
-	for i := 0; i < workers; i++ {
-		go worker.Create(publisher, workersGroup, closeCh)
+	for i := 0; i < config.Count; i++ {
+		go worker.Create(config.MessagesPerSecond, config.Publisher, workersGroup, closeCh)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -55,14 +61,17 @@ func setupWorkers(publisher *kafka.Publisher) {
 	workersGroup.Wait()
 }
 
-func handleConfig() {
-	viper.AddConfigPath(".")
-	viper.AutomaticEnv()
-	viper.SetConfigName("settings")
-	viper.SetConfigType("json")
+func newConfig() *viper.Viper {
+	config := viper.New()
+	config.AddConfigPath(".")
+	config.AutomaticEnv()
+	config.SetConfigName("settings")
+	config.SetConfigType("json")
 
-	err := viper.ReadInConfig()
+	err := config.ReadInConfig()
 	if err != nil {
-		fmt.Errorf("Failed to load configuration: %v", err)
+		panic(err)
 	}
+
+	return config
 }

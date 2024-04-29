@@ -7,7 +7,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/spf13/viper"
 	"math/rand"
 	"sync"
 	"time"
@@ -20,8 +19,7 @@ type postAdded struct {
 	OccurredOn time.Time `json:"occurred_on"`
 }
 
-func Create(publisher message.Publisher, wg *sync.WaitGroup, closeCh chan struct{}) {
-	messagesPerSecond := viper.GetInt("MessagesPerSecond")
+func Create(messagesPerSecond int, publisher message.Publisher, wg *sync.WaitGroup, closeCh chan struct{}) {
 	ticker := time.NewTicker(time.Duration(int(time.Second) / messagesPerSecond))
 
 	for {

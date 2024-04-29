@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Create(pub *kafka.Publisher, marshaler kafka.Unmarshaler, logger watermill.LoggerAdapter) (*message.Router, error) {
+func Create(config *viper.Viper, pub *kafka.Publisher, marshaler kafka.Unmarshaler, logger watermill.LoggerAdapter) (*message.Router, error) {
 	r, err := message.NewRouter(message.RouterConfig{}, logger)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func Create(pub *kafka.Publisher, marshaler kafka.Unmarshaler, logger watermill.
 		InitialInterval: time.Millisecond * 10,
 	}
 
-	poisonQueue, err := middleware.PoisonQueue(pub, viper.GetString("Kafka.Topics.PoisonQueue"))
+	poisonQueue, err := middleware.PoisonQueue(pub, config.GetString("Kafka.Topics.PoisonQueue"))
 	if err != nil {
 		panic(err)
 	}
@@ -50,9 +50,9 @@ func Create(pub *kafka.Publisher, marshaler kafka.Unmarshaler, logger watermill.
 	// Handler that counts consumed posts
 	r.AddHandler(
 		"posts_counter",
-		viper.GetString("Kafka.Topics.PostsPublished"),
-		createSubscriber("posts_counter", marshaler, logger),
-		viper.GetString("Kafka.Topics.PostsCounted"),
+		config.GetString("Kafka.Topics.PostsPublished"),
+		createSubscriber(config, "posts_counter", marshaler, logger),
+		config.GetString("Kafka.Topics.PostsCounted"),
 		pub,
 		handlers.NewPostsCounter().Count,
 	)
@@ -60,18 +60,18 @@ func Create(pub *kafka.Publisher, marshaler kafka.Unmarshaler, logger watermill.
 	// Handler that generates "feed" from consumed posts
 	r.AddNoPublisherHandler(
 		"feed_generator",
-		viper.GetString("Kafka.Topics.PostsPublished"),
-		createSubscriber("feed_generator", marshaler, logger),
+		config.GetString("Kafka.Topics.PostsPublished"),
+		createSubscriber(config, "feed_generator", marshaler, logger),
 		handlers.NewFeedGenerator().UpdateFeed,
 	)
 
 	return r, nil
 }
 
-func createSubscriber(consumerGroup string, marshaler kafka.Unmarshaler, logger watermill.LoggerAdapter) message.Subscriber {
+func createSubscriber(config *viper.Viper, consumerGroup string, marshaler kafka.Unmarshaler, logger watermill.LoggerAdapter) message.Subscriber {
 	sub, err := kafka.NewSubscriber(
 		kafka.SubscriberConfig{
-			Brokers:       viper.GetStringSlice("Kafka.Brokers"),
+			Brokers:       config.GetStringSlice("Kafka.Brokers"),
 			Unmarshaler:   marshaler,
 			ConsumerGroup: consumerGroup,
 		},

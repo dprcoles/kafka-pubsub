@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
 	"github.com/dprcoles/kafka-pubsub/consumer/router"
@@ -15,12 +14,13 @@ func main() {
 	logger := watermill.NewStdLogger(false, false)
 	logger.Info("Starting the consumer", nil)
 
-	handleConfig()
+	config := newConfig()
 
 	pub, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
-			Brokers:   viper.GetStringSlice("Kafka.Brokers"),
-			Marshaler: marshaler,
+			Brokers:     config.GetStringSlice("Kafka.Brokers"),
+			Marshaler:   marshaler,
+			OTELEnabled: true,
 		},
 		logger,
 	)
@@ -28,21 +28,27 @@ func main() {
 		panic(err)
 	}
 
-	r, err := router.Create(pub, marshaler, logger)
+	r, err := router.Create(config, pub, marshaler, logger)
+	if err != nil {
+		panic(err)
+	}
 
 	if err = r.Run(context.Background()); err != nil {
 		panic(err)
 	}
 }
 
-func handleConfig() {
-	viper.AddConfigPath(".")
-	viper.AutomaticEnv()
-	viper.SetConfigName("settings")
-	viper.SetConfigType("json")
+func newConfig() *viper.Viper {
+	config := viper.New()
+	config.AddConfigPath(".")
+	config.AutomaticEnv()
+	config.SetConfigName("settings")
+	config.SetConfigType("json")
 
-	err := viper.ReadInConfig()
+	err := config.ReadInConfig()
 	if err != nil {
-		fmt.Errorf("Failed to load configuration: %v", err)
+		panic(err)
 	}
+
+	return config
 }

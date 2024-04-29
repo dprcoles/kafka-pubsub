@@ -13,3 +13,5 @@
 
 .idea/
 mocks/
+
+.DS_Store
